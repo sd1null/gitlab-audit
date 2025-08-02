@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gitlab-audit
+  namespace: gitlab-audit 
+spec:
+  schedule: {{ .Values.schedule }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - command:
+            - python
+            - /usr/src/app/main.py
+            env:
+            - name: TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: gitlab-audit
+                  key: token
+            - name: PASSWD
+              valueFrom:
+                secretKeyRef:
+                  name: gitlab-audit
+                  key: passwd
+            image: {{ .Values.image }}
+            imagePullPolicy: IfNotPresent
+            name: gitlab-audit
+          restartPolicy: OnFailure
