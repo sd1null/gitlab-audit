@@ -1,0 +1,60 @@
+variables:
+  IMAGE_NAME: gitlab-audit
+
+stages:
+  - check_syntax
+  - build
+  - deploy
+
+.prepare_kube_config:
+  before_script:
+    - mkdir -p $HOME/.kube/
+    - cat ${!KUBE_CONFIG} | base64 -d > $HOME/.kube/config
+    - chmod -R 700 $HOME/.kube
+
+check_syntax:
+  stage: check_syntax
+  tags:
+    - runner-docker
+  image: python:3.9-slim-buster
+  script:
+    - python -m py_compile main.py
+
+build:
+  stage: build
+  tags:
+    - nwtn-docker
+  image:
+    name: ${YC_CONTAINER_REGISTRY_PUBLIC}/gcr.io/kaniko-project/executor:v1.7.0-debug
+    entrypoint: [""]
+  before_script:
+    - mkdir -p /kaniko/.docker
+    - echo ${YC_JSON_DOCKER_CONFIG} > /kaniko/.docker/config.json
+    - export VERSION=$(date +%y.%m.%d)
+  script:
+    - >
+        /kaniko/executor
+        --cache=false
+        --log-timestamp=true
+        --context ${CI_PROJECT_DIR}
+        --build-arg TOKEN=${TOKEN} 
+        --build-arg PASSWD=${PASSWD}
+        --dockerfile ${CI_PROJECT_DIR}/Dockerfile
+        --destination ${YC_CONTAINER_REGISTRY_INTERNAL}/$IMAGE_NAME:$VERSION
+
+deploy:
+  tags:
+    - k8s
+  stage: deploy
+  dependencies:
+    - build
+  extends:
+    - .prepare_kube_config
+  image: dtzar/helm-kubectl:3.6.3-2022-04-26
+  variables:
+      KUBE_CONFIG: $infra_KUBE_CONFIG
+  before_script:
+    - export VERSION=$(date +%y.%m.%d)
+  script: 
+    - helm upgrade --install -n gitlab-audit gitlab-audit ./helm -f ./helm/values.yaml --set image=${YC_CONTAINER_REGISTRY_INTERNAL}/$IMAGE_NAME:$VERSION
+

@@ -1,0 +1,21 @@
+title = "Gitleaks config"
+[extend]
+useDefault = true
+
+[[rules]]
+id = "passport"
+description = "serial number"
+regex = '''\d{4}\|\d{6}'''
+tags = ["pd"]
+
+[[rules]]
+id = "phone"
+description = "phone number"
+regex = '''^((\+7|7|8)+\d{10})'''
+tags = ["pd"]
+
+[[rules]]
+id = "flname"
+description = "fio"
+regex = '''^([А-ЯЁ][а-яё]+)\s+([А-ЯЁ][а-яё]+)\s+([А-ЯЁ][а-яё]+)'''
+tags = ["pd"]
